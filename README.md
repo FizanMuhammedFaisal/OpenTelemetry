@@ -61,16 +61,10 @@ A **trace** represents the complete journey of a request through your system.
 
 ```mermaid
 graph TD
-    A[👤 User Request] --> B[HTTP GET /api/users/123<br/>150ms total]
-    B --> C[📊 DB Query<br/>SELECT * FROM users<br/>45ms]
-    B --> D[⚡ Cache Lookup<br/>redis.get<br/>2ms]
-    B --> E[📤 Response Sent]
-
-    style A fill:#e1f5fe
-    style B fill:#fff3e0
-    style C fill:#f3e5f5
-    style D fill:#e8f5e9
-    style E fill:#fce4ec
+    A["User Request"] --> B["HTTP GET /api/users/123 - 150ms"]
+    B --> C["DB Query - 45ms"]
+    B --> D["Cache Lookup - 2ms"]
+    B --> E["Response Sent"]
 ```
 
 **Key Concepts:**
@@ -94,12 +88,12 @@ graph TD
 
 ```mermaid
 graph LR
-    subgraph Metrics Examples
-        A[http_requests_total] --> A1[📈 1,523 requests]
-        B[http_request_duration] --> B1[⏱️ 45ms avg]
-        C[active_connections] --> C1[🔗 42 connections]
-        D[memory_usage] --> D1[💾 256MB]
-        E[error_rate] --> E1[❌ 0.5%]
+    subgraph Metrics
+        A[http_requests_total] --> A1["1,523 requests"]
+        B[http_request_duration] --> B1["45ms avg"]
+        C[active_connections] --> C1["42 connections"]
+        D[memory_usage] --> D1["256MB"]
+        E[error_rate] --> E1["0.5%"]
     end
 ```
 
@@ -141,24 +135,24 @@ graph LR
 
 ```mermaid
 flowchart TB
-    subgraph APP["🖥️ YOUR APPLICATION"]
-        SDK["OpenTelemetry SDK<br/>(instrumentation.ts)<br/>• Auto-instruments Express, HTTP<br/>• Collects traces & metrics"]
-        PINO["Pino Logger<br/>(logger.ts)<br/>• Structured JSON logging<br/>• Buffers logs"]
+    subgraph APP["YOUR APPLICATION"]
+        SDK["OpenTelemetry SDK"]
+        PINO["Pino Logger"]
     end
 
-    subgraph COLLECTORS["📡 COLLECTORS"]
-        OTEL["OTel Collector<br/>:4317 / :4318"]
-        LOKI_IN["Loki<br/>:3100"]
+    subgraph COLLECTORS["COLLECTORS"]
+        OTEL["OTel Collector :4317/:4318"]
+        LOKI_IN["Loki :3100"]
     end
 
-    subgraph STORAGE["💾 STORAGE BACKENDS"]
-        TEMPO["Tempo<br/>(Traces)"]
-        PROM["Prometheus<br/>(Metrics)"]
-        LOKI["Loki<br/>(Logs)"]
+    subgraph STORAGE["STORAGE BACKENDS"]
+        TEMPO["Tempo - Traces"]
+        PROM["Prometheus - Metrics"]
+        LOKI["Loki - Logs"]
     end
 
-    subgraph VIZ["📊 VISUALIZATION"]
-        GRAFANA["Grafana<br/>:3000"]
+    subgraph VIZ["VISUALIZATION"]
+        GRAFANA["Grafana :3000"]
     end
 
     SDK -->|OTLP| OTEL
@@ -169,11 +163,6 @@ flowchart TB
     TEMPO --> GRAFANA
     PROM --> GRAFANA
     LOKI --> GRAFANA
-
-    style APP fill:#e3f2fd
-    style COLLECTORS fill:#fff8e1
-    style STORAGE fill:#f3e5f5
-    style VIZ fill:#e8f5e9
 ```
 
 ---
@@ -230,27 +219,26 @@ The journey from your code to storage:
 
 ```mermaid
 flowchart TB
-    subgraph CODE["1️⃣ YOUR CODE"]
-        EXPRESS["app.get('/rolldice', ...)<br/>↓<br/>Auto-instrumentation creates Span"]
+    subgraph CODE["1. YOUR CODE"]
+        EXPRESS["app.get - Auto creates Span"]
     end
 
-    subgraph SDK["2️⃣ OPENTELEMETRY SDK"]
-        BATCH["Batch Processor<br/>Collects spans (1s timeout or 512 items)"]
-        EXPORTER["OTLP HTTP Exporter<br/>POST /v1/traces<br/>POST /v1/metrics"]
+    subgraph SDK["2. OPENTELEMETRY SDK"]
+        BATCH["Batch Processor"]
+        EXPORTER["OTLP HTTP Exporter"]
     end
 
-    subgraph COLLECTOR["3️⃣ OTEL COLLECTOR"]
-        RECV["Receiver<br/>OTLP :4318"]
-        PROC["Processor<br/>Batch + Resource"]
-        EXP["Exporters<br/>→ Tempo<br/>→ Prometheus"]
+    subgraph COLLECTOR["3. OTEL COLLECTOR"]
+        RECV["Receiver OTLP :4318"]
+        PROC["Processor"]
+        EXP["Exporters"]
     end
 
-    subgraph BACKENDS["4️⃣ STORAGE"]
-        TEMPO["Tempo<br/>Stores traces"]
-        PROM["Prometheus<br/>Stores metrics"]
+    subgraph BACKENDS["4. STORAGE"]
+        TEMPO["Tempo - Traces"]
+        PROM["Prometheus - Metrics"]
     end
 
-    CODE --> SDK
     EXPRESS --> BATCH
     BATCH --> EXPORTER
     EXPORTER -->|HTTP POST| RECV
@@ -258,11 +246,6 @@ flowchart TB
     PROC --> EXP
     EXP --> TEMPO
     EXP --> PROM
-
-    style CODE fill:#e3f2fd
-    style SDK fill:#fff3e0
-    style COLLECTOR fill:#f3e5f5
-    style BACKENDS fill:#e8f5e9
 ```
 
 > 📖 _"The Collector receives telemetry data, processes it, and exports it to the configured backend(s)."_
@@ -276,32 +259,28 @@ Logs take a different path using **pino-loki**:
 
 ```mermaid
 flowchart TB
-    subgraph CODE["1️⃣ YOUR CODE"]
-        LOG["logger.info({ dice: 5 }, 'Dice rolled')"]
+    subgraph CODE["1. YOUR CODE"]
+        LOG["logger.info - dice: 5"]
     end
 
-    subgraph PINO["2️⃣ PINO LOGGER"]
-        SERIAL["Serialize to JSON<br/>{level:30, time:..., dice:5, msg:'...'}"]
+    subgraph PINO["2. PINO LOGGER"]
+        SERIAL["Serialize to JSON"]
         WORKER["pino-loki Worker Thread"]
-        BUFFER["Internal Buffer<br/>Max 10,000 logs<br/>Flushes every 2s"]
+        BUFFER["Buffer - Max 10k logs"]
     end
 
-    subgraph LOKI["3️⃣ LOKI"]
-        DIST["Distributor<br/>Validates request"]
-        ING["Ingester<br/>Compresses chunks"]
-        STORE["Storage<br/>/tmp/loki/chunks/"]
+    subgraph LOKI["3. LOKI"]
+        DIST["Distributor"]
+        ING["Ingester"]
+        STORE["Storage"]
     end
 
     LOG --> SERIAL
     SERIAL --> WORKER
     WORKER --> BUFFER
-    BUFFER -->|HTTP POST<br/>/loki/api/v1/push| DIST
+    BUFFER -->|HTTP POST| DIST
     DIST --> ING
     ING --> STORE
-
-    style CODE fill:#e3f2fd
-    style PINO fill:#fff3e0
-    style LOKI fill:#e8f5e9
 ```
 
 ---
